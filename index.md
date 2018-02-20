@@ -4,12 +4,12 @@
 
 Building a full fledge graphical tooling to let users manipulate diagrams is a long and complex endavour.
 Creating such tool for one platform is very expensive but supporting multiple platforms is not a viable option given the cost of integration in each platform.
-The [graphical server protocol](specification.html) aims at dramatically lowering the cost of integrating a graphical tool in a platform by defining a platform agnostic protocol used to communicate between a platform and a graphical designer.
-By implementing this [protocol](specification.html), a platform would gain the ability to reuse multiple designers while a tool creator would be able to deploy his product on multiple platforms easily.
+The [graphical server protocol](specification) aims at dramatically lowering the cost of integrating a graphical tool in a platform by defining a platform agnostic protocol used to communicate between a platform and a graphical designer.
+By implementing this [protocol](specification), a platform would gain the ability to reuse multiple designers while a tool creator would be able to deploy his product on multiple platforms easily.
 
 ## How it works
 
-The [graphical server protocol](specification.html) is used by both the server running as a service in a process separated from the client. Both clients and server will exchange various messages to manipulate the diagram.
+The [graphical server protocol](specification) is used by both the server running as a service in a process separated from the client. Both clients and server will exchange various messages to manipulate the diagram.
 
 The server process can be used to manipulate various diagrams simultaneously. A client can be connected to multiple diagram servers too.
 
