@@ -2,7 +2,7 @@
 
 ## What is the graphical server protocol?
 
-Building a full fledge graphical tooling to let users manipulate diagrams is a long and complex endavour.
+Building a full fledge graphical tooling to let users manipulate diagrams is a long and complex endeavour.
 Creating such tool for one platform is very expensive but supporting multiple platforms is not a viable option given the cost of integration in each platform.
 The [graphical server protocol](specification) aims at dramatically lowering the cost of integrating a graphical tool in a platform by defining a platform agnostic protocol used to communicate between a platform and a graphical designer.
 By implementing this [protocol](specification), a platform would gain the ability to reuse multiple designers while a tool creator would be able to deploy his product on multiple platforms easily.
