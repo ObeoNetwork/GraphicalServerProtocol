@@ -185,7 +185,7 @@ class Dimension {
 }
 ```
 
-The `ElementAndElignment` type is used to associate a new alignment with a model element, which is referenced via its id.
+The `ElementAndAlignment` type is used to associate a new alignment with a model element, which is referenced via its id.
 
 ```typescript
 class ElementAndAlignment {
