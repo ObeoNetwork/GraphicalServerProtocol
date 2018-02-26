@@ -308,7 +308,7 @@ class FitToScreenAction implements Action {
 
 ### OpenAction
 
-Used to indicate that an element as been opened. The default behavior will be triggered when an end user double click on an element. It can allow a diagram server to react to this event.
+Used to indicate that an element has been opened. The default behavior will be triggered when an end user double click on an element. It can allow a diagram server to react to this event.
 
 ```typescript
 class OpenAction implements Action {
