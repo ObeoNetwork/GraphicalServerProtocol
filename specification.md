@@ -1,6 +1,6 @@
 # Graphical Language Server Protocol
 
-The graphical language server protocol heavily builds on the client-server protocol defined in [Sprotty](https://github.com/theia-ide/sprotty), but adds additional actions to enable editing capabilities, etc. Below, we first introduce the base protocol and action types defined in Sprotty, and subsequently discuss actions that have been added on top of the base protocol to enable editing of diagrams, as well as additional action types.
+The graphical language server protocol heavily builds on the client-server protocol defined in [Sprotty](https://github.com/theia-ide/sprotty), but adds additional actions to enable editing capabilities, etc. Below, we first introduce the base protocol and action types defined in Sprotty, and subsequently discuss actions that have been added on top of the base protocol to enable editing of graphical models, as well as additional action types.
 
 ## Sprotty's Client-server Protocol
 
@@ -38,7 +38,7 @@ interface Action {
 
 ### Sprotty element types
 
-Actions refer to elements in the diagram via an `elementId`. However, a few actions actually need to transfer the diagram. Therefore, the diagram needs to be represented as a serializable `SModelRootSchema`.
+Actions refer to elements in the graphical model via an `elementId`. However, a few actions actually need to transfer the graphical model. Therefore, the graphical model needs to be represented as a serializable `SModelRootSchema`.
 
 ```typescript
 interface SModelRootSchema extends SModelElementSchema {
@@ -55,7 +55,7 @@ interface SModelElementSchema {
 
 ### RequestModelAction
 
-Sent from the client to the server in order to request a model. Usually this is the first message that is sent from the client to the server, so it is also used to initiate the communication. The response is a `SetModelAction` or an `UpdateModelAction`.
+Sent from the client to the server in order to request a graphical model. Usually this is the first message that is sent from the client to the server, so it is also used to initiate the communication. The response is a `SetModelAction` or an `UpdateModelAction`.
 
 ```typescript
 class RequestModelAction implements Action {
@@ -65,7 +65,7 @@ class RequestModelAction implements Action {
   public readonly kind = 'requestModel';
 
   /**
-   * Additional options used to compute the diagram.
+   * Additional options used to compute the graphical model.
    */
   public readonly options?: { [key: string]: string });
 }
@@ -83,7 +83,7 @@ class SetModelAction implements Action {
   public readonly kind = 'setModel';
 
   /**
-   * The new diagram elements.
+   * The new graphical model elements.
    */
   public readonly newRoot: SModelRootSchema;
 }
@@ -101,12 +101,12 @@ class UpdateModelAction implements Action {
   public readonly kind = 'updateModel';
 
   /**
-   * The new root element of the diagram.
+   * The new root element of the graphical model.
    */
   public readonly newRoot?: SModelRootSchema;
 
   /**
-   * The matches used while comparing the diagram elements.
+   * The matches used while comparing the graphical model elements.
    */
   public readonly matches?: Match[];
 
@@ -129,7 +129,7 @@ class RequestBoundsAction implements Action {
   public readonly kind = 'requestBounds';
 
   /**
-   * The diagram elements to consider to compute the new bounds.
+   * The model elements to consider to compute the new bounds.
    */
   public readonly newRoot: SModelRootSchema;
 }
@@ -147,7 +147,7 @@ export class ComputedBoundsAction implements Action {
   public readonly kind = 'computedBounds';
 
   /**
-   * The new bounds of the diagram elements.
+   * The new bounds of the model elements.
    */
   public readonly bounds: ElementAndBounds[];
 
@@ -157,7 +157,7 @@ export class ComputedBoundsAction implements Action {
   public readonly revision?: number;
 
   /**
-   * The new alignment of the diagram elements.
+   * The new alignment of the model elements.
    */
   public readonly alignments?: ElementAndAlignment[];
 }
@@ -277,7 +277,7 @@ class CenterAction implements Action {
 
 ### CollapseExpandAction
 
-Recalculates a diagram when some specific elements are collapsed or expanded. This action can be sent by a client to the server to let the server compute a new version of the diagram.
+Recalculates a model when some specific elements are collapsed or expanded. This action can be sent by a client to the server to let the server compute a new version of the model.
 
 ```typescript
 class CollapseExpandAction implements Action {
@@ -300,7 +300,7 @@ class CollapseExpandAction implements Action {
 
 ### CollapseExpandAllAction
 
-Collapses or expands all elements of the diagram.
+Collapses or expands all elements of the model.
 
 ```typescript
 export class CollapseExpandAllAction {
@@ -318,7 +318,7 @@ export class CollapseExpandAllAction {
 
 ### RequestExportSvgAction
 
-Used to request the export of the diagram as an SVG image.
+Used to request the export of the graphical model as an SVG image.
 
 ```typescript
 class RequestExportSvgAction implements Action {
@@ -331,7 +331,7 @@ class RequestExportSvgAction implements Action {
 
 ### ExportSvgAction
 
-Used to export the diagram as an SVG image.
+Used to export the graphical model as an SVG image.
 
 ```typescript
 class ExportSvgAction implements Action {
@@ -349,7 +349,7 @@ class ExportSvgAction implements Action {
 
 ### FitToScreenAction
 
-Triggered when the user requests the viewer to fit its content to the available drawing area. The resulting FitToScreenCommand changes the zoom and scroll settings of the viewport so the model can be shown completely. This action can also be sent from the model source to the client in order to perform such a viewport change programmatically.
+Triggered when the user requests the viewer to fit its content to the available drawing area. The resulting fit-to-screen command changes the zoom and scroll settings of the viewport so the model can be shown completely. This action can also be sent from the server to the client in order to perform such a viewport change programmatically.
 
 ```typescript
 class FitToScreenAction implements Action {
@@ -453,12 +453,12 @@ class SelectAction implements Action {
   /**
    * The identifier of the elements to mark as selected.
    */
-  public readonly selectedElementsIDs: string[] = [];
+  public readonly selectedElementsIds: string[] = [];
 
   /**
    * The identifier of the elements to mark as not selected.
    */
-  public readonly deselectedElementsIDs: string[] = [];
+  public readonly deselectedElementsIds: string[] = [];
 }
 ```
 
@@ -532,6 +532,7 @@ export class SetOperationsAction implements Action {
 }
 
 export interface Operation {
+    readonly id: string;
     readonly elementTypeId?: string;
     readonly label: string;
     readonly operationKind: string;
@@ -546,12 +547,39 @@ export namespace OperationKind {
   export const GENERIC = "generic";
 }
 ```
-### CreateNodeOperationAction
 
-The client sends a `CreateNodeOperationAction` to the server, to request the execution of an `create-node` operation.
+### ExecuteOperationAction
+
+The client sends an `ExecuteOperationAction` to the server, to request the execution of a `generic` operation.
 
 ```typescript
-export class CreateNodeOperationAction implements Action {
+export class ExecuteOperationAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  readonly kind = 'executeOperation_generic';
+  /*
+   * The id of the generic operation.
+   */
+  public readonly id: string;
+  /**
+   * The context element.
+   */
+  public readonly elementId?: string;
+  /*
+   * The context location.
+   */
+  public readonly location?: Point;
+}
+```
+
+
+### ExecuteCreateNodeOperationAction
+
+The client sends a `ExecuteCreateNodeOperationAction` to the server, to request the execution of an `create-node` operation.
+
+```typescript
+export class ExecuteCreateNodeOperationAction implements Action {
   /**
    * The kind of the action.
    */
@@ -571,12 +599,12 @@ export class CreateNodeOperationAction implements Action {
 }
 ```
 
-### CreateConnectionOperationAction
+### ExecuteCreateConnectionOperationAction
 
-The client sends a `CreateConnectionOperationAction` to the server, to request the execution of an `create-connection` operation.
+The client sends a `ExecuteCreateConnectionOperationAction` to the server, to request the execution of an `create-connection` operation.
 
 ```typescript
-export class CreateConnectionOperationAction implements Action {
+export class ExecuteCreateConnectionOperationAction implements Action {
   /**
    * The kind of the action.
    */
@@ -596,12 +624,12 @@ export class CreateConnectionOperationAction implements Action {
 }
 ```
 
-### DeleteElementOperationAction
+### ExecuteDeleteElementOperationAction
 
-The client sends a `DeleteElementOperationAction` to the server, to request the execution of an `delete` operation.
+The client sends a `ExecuteDeleteElementOperationAction` to the server, to request the execution of an `delete` operation.
 
 ```typescript
-export class DeleteElementOperationAction implements Action {
+export class ExecuteDeleteElementOperationAction  implements Action {
   /**
    * The kind of the action.
    */
@@ -613,12 +641,12 @@ export class DeleteElementOperationAction implements Action {
 }
 ```
 
-### MoveElementOperationAction
+### ExecuteMoveElementOperationAction
 
-The client sends a `MoveElementOperationAction` to the server, to request the execution of an `move` operation.
+The client sends a `ExecuteMoveElementOperationAction` to the server, to request the execution of an `move` operation.
 
 ```typescript
-export class MoveElementOperationAction implements Action {
+export class ExecuteMoveElementOperationAction  implements Action {
   /**
    * The kind of the action.
    */
@@ -772,7 +800,7 @@ class ExecuteServerCommandAction implements Action {
 
 ### RequestLayersAction
 
-Sent from the client to the server in order to request diagram layers. With `RequestModelAction` and `RequestToolsAction`, they are the firsts messages that are sent to the server. The response is a `SetLayersAction`.
+Sent from the client to the server in order to request graphical layers. With `RequestModelAction` and `RequestToolsAction`, they are the firsts messages that are sent to the server. The response is a `SetLayersAction`.
 
 ```typescript
 class RequestLayersAction implements Action {
@@ -785,7 +813,7 @@ class RequestLayersAction implements Action {
 
 ### SetLayersAction
 
-Sent from the server to the client in order to set the diagram layers. If layers are already presents, they are replaced.
+Sent from the server to the client in order to set the graphical layers. If layers are already presents, they are replaced.
 
 ```typescript
 class SetLayersAction implements Action {
@@ -795,7 +823,7 @@ class SetLayersAction implements Action {
   public readonly kind = 'setLayers';
 
   /**
-   * The layers of the diagram.
+   * The layers of the graphical model.
    */
   public readonly layers: Layer[];
 }
@@ -816,7 +844,7 @@ interface Layer {
   /**
    * Indicates if the layer is currently active or not.
    */
-  readonly isActive: boolean;
+  readonly active: boolean;
 }
 ```
 
