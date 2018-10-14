@@ -1,13 +1,13 @@
-# Graphical Server Protocol
+# Graphical Language Server Protocol
 
-This document describes the first version of the graphical server protocol. An implementation of the complete protocol described here can be found in the web-based prototype of [Eclipse Sirius](https://www.eclipse.org/sirius/) realized by [Obeo](https://www.obeo.fr). This prototype has been created on top of [Sprotty](https://github.com/theia-ide/sprotty) which has defined and implemented the core parts of this protocol.
+The graphical language server protocol heavily builds on the client-server protocol defined in [Sprotty](https://github.com/theia-ide/sprotty), but adds additional actions to enable editing capabilities, etc. Below, we first introduce the base protocol and action types defined in Sprotty, and subsequently discuss actions that have been added on top of the base protocol to enable editing of diagrams, as well as additional action types.
 
-## Base Protocol
+## Sprotty's Client-server Protocol
 
-The following TypeScript definitions describe the base protocol:
+The following TypeScript definitions describe the base protocol as defined in the client-server protocol of Sprotty. Note that the following documentation describes the classes defined in Sprotty and largely reuses their class documentation.
 
 ### ActionMessage
-A general message as defined by JSON. It holds the action that are transmited between the client and the server.
+A general message serves as an envelope carrying an action to be transmited between the client and the server.
 
 ```typescript
 class ActionMessage {
@@ -23,11 +23,9 @@ class ActionMessage {
 }
 ```
 
-Action messages processed by the client or the server do not automatically require a response. Additional information regarding the lifecycle of some action messages can be found in the [Sprotty documentation](https://github.com/theia-ide/sprotty/wiki/Client-Server-Protocol).
+Action messages processed by the client or the server don't always require a response. Additional information regarding the lifecycle of some action messages can be found in the [Sprotty documentation](https://github.com/theia-ide/sprotty/wiki/Client-Server-Protocol).
 
-## Actions
-
-Actions contained in the action messages are identified by their `kind` attribute. This attribute is required for all actions. Some actions may most of the time be supported only by a client or only by the server but they can be supported by both clients and servers in theory depending on the situation. All actions must extend the default action interface.
+Actions contained in action messages are identified by their `kind` attribute. This attribute is required for all actions. Certain actions are meant to be sent from the client to the server or vice versa, while other actions can be sent by both ways, by the client or the server. All actions must extend the default action interface.
 
 ```typescript
 interface Action {
@@ -38,73 +36,108 @@ interface Action {
 }
 ```
 
-### CenterAction
+### Sprotty element types
 
-Centers the viewport on the elements with the given identifiers. It changes the scroll setting of the viewport accordingly and resets the zoom to its default. This action can also be created on the client but it can also be sent by the server in order to perform such a viewport change remotely.
+Actions refer to elements in the diagram via an `elementId`. However, a few actions actually need to transfer the diagram. Therefore, the diagram needs to be represented as a serializable `SModelRootSchema`.
 
 ```typescript
-class CenterAction implements Action {
+interface SModelRootSchema extends SModelElementSchema {
+    canvasBounds?: Bounds
+    revision?: number
+}
+
+interface SModelElementSchema {
+    type: string
+    id: string
+    children?: SModelElementSchema[]
+}
+```
+
+### RequestModelAction
+
+Sent from the client to the server in order to request a model. Usually this is the first message that is sent from the client to the server, so it is also used to initiate the communication. The response is a `SetModelAction` or an `UpdateModelAction`.
+
+```typescript
+class RequestModelAction implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'center';
+  public readonly kind = 'requestModel';
 
   /**
-   * The identifier of the elements on which the viewport should be centered.
+   * Additional options used to compute the diagram.
    */
-  public readonly elementIds: string[];
+  public readonly options?: { [key: string]: string });
+}
+```
+
+### SetModelAction
+
+Sent from the server to the client in order to set the model. If a model is already present, it is replaced.
+
+```typescript
+class SetModelAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind = 'setModel';
 
   /**
-   * Indicate if the modification of the viewport should be realized with or without support of animations.
+   * The new diagram elements.
+   */
+  public readonly newRoot: SModelRootSchema;
+}
+```
+
+### UpdateModelAction
+
+Sent from the server to the client in order to update the model. If no model is present yet, this behaves the same as a `SetModelAction`. The transition from the old model to the new one can be animated.
+
+```typescript
+class UpdateModelAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind = 'updateModel';
+
+  /**
+   * The new root element of the diagram.
+   */
+  public readonly newRoot?: SModelRootSchema;
+
+  /**
+   * The matches used while comparing the diagram elements.
+   */
+  public readonly matches?: Match[];
+
+  /**
+   * Indicates if the update should be performed with animation support or not.
    */
   public readonly animate: boolean = true;
 }
 ```
 
-### CollapseExpandAction
+### RequestBoundsAction
 
-Recalculates a diagram when some specific elements are collapsed or expanded. This action can be sent by a client to the server to let the server compute a new version of the diagram.
+Sent from the server to the client to request bounds for the given model. The model is rendered invisibly so the bounds can derived from the DOM. The response is a `ComputedBoundsAction`. This hidden rendering round-trip is necessary if the client is responsible for parts of the layout.
 
 ```typescript
-class CollapseExpandAction implements Action {
+class RequestBoundsAction implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'collapseExpand';
-  
-  /**
-   * The identifier of the elements to expand.
-   */
-  public readonly expandIds: string[];
+  public readonly kind = 'requestBounds';
 
   /**
-   * The identifier of the elements to collapse.
+   * The diagram elements to consider to compute the new bounds.
    */
-  public readonly collapseIds: string[];
-}
-```
-
-### CollapseExpandAllAction
-
-Collapses or expands all the elements of the diagram.
-
-```typescript
-export class CollapseExpandAllAction {
-  /**
-   * The kind of the action.
-   */
-  public readonly kind = 'collapseExpandAll';
-  
-  /**
-   * Indicates if the elements should be expanded (true) or collapsed (false)
-   */
-  public readonly expand: boolean = true;
+  public readonly newRoot: SModelRootSchema;
 }
 ```
 
 ### ComputedBoundsAction
 
-Sent from the client to the model source (e.g. a DiagramServer) to transmit the result of bounds computation as a response to a RequestBoundsAction. If the server is responsible for parts of the layout (see `needsServerLayout` viewer option), it can do so after applying the computed bounds received with this action. Otherwise there is no need to send the computed bounds to the server, so they can be processed locally by the client.
+Sent from the client to the server to transmit the result of bounds computation as a response to a `RequestBoundsAction`. If the server is responsible for parts of the layout (see `needsServerLayout` viewer option), it can do so after applying the computed bounds received with this action. Otherwise there is no need to send the computed bounds to the server, so they can be processed locally by the client.
 
 ```typescript
 export class ComputedBoundsAction implements Action {
@@ -118,7 +151,7 @@ export class ComputedBoundsAction implements Action {
    */
   public readonly bounds: ElementAndBounds[];
 
-  /**
+  /*
    * The revision number.
    */
   public readonly revision?: number;
@@ -201,57 +234,98 @@ class ElementAndAlignment {
 }
 ```
 
-### ExecuteContainerCreationToolAction
+### SetBoundsAction
 
-Triggered when the user requests the execution of a container creation tool.
+Sent from the server to the client to update the bounds of some (or all) model elements.
 
 ```typescript
-class ExecuteContainerCreationToolAction implements Action {
+class SetBoundsAction implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'executeContainerCreationTool';
+  public readonly kind = 'setBounds';
 
   /**
-   * The name of the container creation tool to execute.
+   * The elements to update with their new bounds.
    */
-  public readonly toolName: string;
+  public readonly bounds: ElementAndBounds[];
 }
 ```
 
-### ExecuteNodeCreationToolAction
+### CenterAction
 
-Triggered when the user requests the execution of a node creation tool.
+Centers the viewport on the elements with the given identifiers. It changes the scroll setting of the viewport accordingly and resets the zoom to its default. This action can also be created on the client but it can also be sent by the server in order to perform such a viewport change remotely.
 
 ```typescript
-class ExecuteNodeCreationToolAction implements Action {
+class CenterAction implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'executeNodeCreationTool';
+  public readonly kind = 'center';
 
   /**
-   * The name of the node creation tool to execute.
+   * The identifier of the elements on which the viewport should be centered.
    */
-  public readonly toolName: string;
+  public readonly elementIds: string[];
+
+  /**
+   * Indicate if the modification of the viewport should be realized with or without support of animations.
+   */
+  public readonly animate: boolean = true;
 }
 ```
 
-### ExecuteToolAction
+### CollapseExpandAction
 
-Triggered when the user requests the execution of a generic tool.
+Recalculates a diagram when some specific elements are collapsed or expanded. This action can be sent by a client to the server to let the server compute a new version of the diagram.
 
 ```typescript
-class ExecuteToolAction implements Action {
+class CollapseExpandAction implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'executeTool';
+  public readonly kind = 'collapseExpand';
+  
+  /**
+   * The identifier of the elements to expand.
+   */
+  public readonly expandIds: string[];
 
   /**
-   * The name of the generic tool to execute.
+   * The identifier of the elements to collapse.
    */
-  public readonly toolName: string;
+  public readonly collapseIds: string[];
+}
+```
+
+### CollapseExpandAllAction
+
+Collapses or expands all elements of the diagram.
+
+```typescript
+export class CollapseExpandAllAction {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind = 'collapseExpandAll';
+  
+  /**
+   * Indicates if the elements should be expanded (true) or collapsed (false)
+   */
+  public readonly expand: boolean = true;
+}
+```
+
+### RequestExportSvgAction
+
+Used to request the export of the diagram as an SVG image.
+
+```typescript
+class RequestExportSvgAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind = 'requestExportSvg';
 }
 ```
 
@@ -308,7 +382,7 @@ class FitToScreenAction implements Action {
 
 ### OpenAction
 
-Used to indicate that an element has been opened. The default behavior will be triggered when an end user double click on an element. It can allow a diagram server to react to this event.
+Used to indicate that an element has been opened. The default behavior will be triggered when an end user double click on an element. It can allow a server to react to this event.
 
 ```typescript
 class OpenAction implements Action {
@@ -324,70 +398,9 @@ class OpenAction implements Action {
 }
 ```
 
-### RequestBoundsAction
-
-Sent from the model source to the client to request bounds for the given model. The model is rendered invisibly so the bounds can derived from the DOM. The response is a ComputedBoundsAction. This hidden rendering round-trip is necessary if the client is responsible for parts of the layout.
-
-```typescript
-class RequestBoundsAction implements Action {
-  /**
-   * The kind of the action.
-   */
-  public readonly kind = 'requestBounds';
-
-  /**
-   * The diagram elements to consider to compute the new bounds.
-   */
-  public readonly newRoot: SModelRootSchema;
-}
-```
-
-### RequestExportSvgAction
-
-Used to request the export of the diagram as an SVG image.
-
-```typescript
-class RequestExportSvgAction implements Action {
-  /**
-   * The kind of the action.
-   */
-  public readonly kind = 'requestExportSvg';
-}
-```
-
-### RequestLayersAction
-
-Sent from the client to the server in order to request diagram layers. With `RequestModelAction` and `RequestToolsAction`, they are the firsts messages that are sent to the server. The response is a `SetLayersAction`.
-
-```typescript
-class RequestLayersAction implements Action {
-  /**
-   * The kind of the action.
-   */
-  public readonly kind = 'requestLayers';
-}
-```
-### RequestModelAction
-
-Sent from the client to the model source (e.g. a DiagramServer) in order to request a model. Usually this is the first message that is sent to the source, so it is also used to initiate the communication. The response is a SetModelAction or an UpdateModelAction.
-
-```typescript
-class RequestModelAction implements Action {
-  /**
-   * The kind of the action.
-   */
-  public readonly kind = 'requestModel';
-
-  /**
-   * Additional options used to compute the diagram.
-   */
-  public readonly options?: { [key: string]: string });
-}
-```
-
 ### RequestPopupModelAction
 
-Triggered when the user hovers the mouse pointer over an element to get a popup with details on that element. This action is sent from the client to the model source, e.g. a DiagramServer. The response is a SetPopupModelAction.
+Triggered when the user hovers the mouse pointer over an element to get a popup with details on that element. This action is sent from the client to the server. The response is a `SetPopupModelAction`.
 
 ```typescript
 class RequestPopupModelAction implements Action {
@@ -397,7 +410,7 @@ class RequestPopupModelAction implements Action {
   public readonly kind = 'requestPopupModel';
 
   /**
-   * The identifier of the element for which a popup is requested.
+   * The identifier of the elements for which a popup is requested.
    */
   public readonly elementId: string;
 
@@ -408,22 +421,27 @@ class RequestPopupModelAction implements Action {
 }
 ```
 
-### RequestToolsAction
+### SetPopupModelAction
 
-Sent from the client to the server in order to request diagram tools. With `RequestModelAction` and `RequestLayersAction`, they are the firsts messages that is sent to the server. The response is a `SetToolsAction`.
+Sent from the server to the client to display a popup in response to a `RequestPopupModelAction`. This action can also be used to remove any existing popup by choosing `EMPTY_ROOT` as root element.
 
 ```typescript
-class RequestToolsAction implements Action {
+class SetPopupModelAction implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'requestTools';
+  public readonly kind = 'setPopupModel';
+
+  /**
+   * The model elements composing the popup to display.
+   */
+  public readonly newRoot: SModelRootSchema;
 }
 ```
 
 ### SelectAction
 
-Triggered when the user changes the selection, e.g. by clicking on a selectable element. The action should trigger a change in the `selected` state accordingly, so the elements can be rendered differently. This action is also forwarded to the diagram server, if present, so it may react on the selection change. Furthermore, the server can send such an action to the client in order to change the selection remotely.
+Triggered when the user changes the selection, e.g. by clicking on a selectable element. The action should trigger a change in the `selected` state accordingly, so the elements can be rendered differently. This action is also forwarded to the server, if present, so it may react on the selection change. Furthermore, the server can send such an action to the client in order to change the selection remotely.
 
 ```typescript
 class SelectAction implements Action {
@@ -464,7 +482,7 @@ class SelectAllAction implements Action {
 
 ### ServerStatusAction
 
-Sent by the external server when to signal a state change.
+Sent by the server to signal a state change.
 
 ```typescript
 class ServerStatusAction implements Action {
@@ -485,21 +503,283 @@ class ServerStatusAction implements Action {
 }
 ```
 
-### SetBoundsAction
+## Actions for Editing
 
-Sent from the model source (e.g. a DiagramServer) to the client to update the bounds of some (or all) model elements.
+### RequestOperationsAction
+
+This action is sent from the client to the server to request the list of available operations. Operations denote requests of the client to _modify_ the model. Note that the model modification is performed on the server. Thus, after the server modified the model, it sends an `UpdateModelAction`.
 
 ```typescript
-class SetBoundsAction implements Action {
+class RequestOperationsAction implements Action {
+  public readonly kind = 'requestOperations';
+}
+```
+
+### SetOperationsAction
+
+The server updates the client on the available operations using a `SetOperationsAction`.
+
+```typescript
+export class SetOperationsAction implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'setBounds';
+  public readonly kind = 'setOperations';
+  /*
+   * The list of operations.
+   */
+  public readonly operations: Operation[]
+}
+
+export interface Operation {
+    readonly elementTypeId?: string;
+    readonly label: string;
+    readonly operationKind: string;
+    readonly active?: boolean;
+}
+
+export namespace OperationKind {
+  export const CREATE_NODE = "create-node";
+  export const CREATE_CONNECTION = "create-connection";
+  export const DELETE_ELEMENT = "delete";
+  export const MOVE = "move";
+  export const GENERIC = "generic";
+}
+```
+### CreateNodeOperationAction
+
+The client sends a `CreateNodeOperationAction` to the server, to request the execution of an `create-node` operation.
+
+```typescript
+export class CreateNodeOperationAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  readonly kind = 'executeOperation_create-node';
+  /**
+   * The type of the element to be created.
+   */
+  public readonly elementTypeId: string;
+  /*
+   * The location at which the operation shall be executed.
+   */
+  public readonly location?: Point;
+  /*
+   * The container in which the operation shall be executed.
+   */
+  public readonly containerId?: string;
+}
+```
+
+### CreateConnectionOperationAction
+
+The client sends a `CreateConnectionOperationAction` to the server, to request the execution of an `create-connection` operation.
+
+```typescript
+export class CreateConnectionOperationAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  readonly kind = 'executeOperation_create-connection';
+  /**
+   * The type of the element to be created.
+   */
+  public readonly elementTypeId: string;
+  /*
+   * The source element.
+   */
+  public readonly sourceElementId: string;
+  /*
+   * The target element.
+   */
+  public readonly targetElementId: string;
+}
+```
+
+### DeleteElementOperationAction
+
+The client sends a `DeleteElementOperationAction` to the server, to request the execution of an `delete` operation.
+
+```typescript
+export class DeleteElementOperationAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  readonly kind = 'executeOperation_delete';
+  /**
+   * The element to be deleted.
+   */
+  public readonly elementId: string;
+}
+```
+
+### MoveElementOperationAction
+
+The client sends a `MoveElementOperationAction` to the server, to request the execution of an `move` operation.
+
+```typescript
+export class MoveElementOperationAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  readonly kind = 'executeOperation_move';
+  /**
+   * The element to be moved.
+   */
+  public readonly elementId: string;
+  /**
+   * The element container of the move operation.
+   */
+  public readonly targetContainerId: string;
+  /**
+   * The graphical location.
+   */
+  public readonly location?: string;
+}
+```
+
+### RequestMoveHintsAction
+
+Sent from the client to the server in order to request hints on whether which elements may be moved into which containers. The `RequestMoveHintsAction` is optional, but should usually be among the first messages sent from the client to the server after receiving the model via `RequestModelAction`. The response is a `SetMoveHintsAction`.
+
+```typescript
+class RequestMoveHintsAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind = 'requestMoveHints';
+}
+```
+
+### SetMoveHintsAction
+
+Sent from the server to the client in order to provide hints on which element may be moved into which target element. These hints specify whether an element can change its container (see also `MoveAction`). The rationale is to avoid a client-server round-trip for user feedback of each synchronous user interaction, such as drag and drop.
+
+```typescript
+class SetMoveHintsAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind = 'setMoveHints';
 
   /**
-   * The elements to update with their new bounds.
+   * The move hints.
    */
-  public readonly bounds: ElementAndBounds[];
+  public readonly hints: DragAndDropHint[];
+}
+
+class DragAndDropHint {
+  /**
+   * The class of the element being a drag source.
+   */
+  public readonly dragElementClass: string;
+
+  /**
+   * The classes of elements being a drop target for elements with the class dragElementClass.
+   */
+  public readonly dropElementClasses: string[];
+}
+```
+
+### ChangeBoundsAction
+
+Triggered when the user changes the position or size of an element. This action concerns only the element's graphical size and position. Whether an element can be resized or repositioned may be specified by the server with a `SetChangeBoundsHintsAction` to allow for immediate user feedback before resizing or repositioning.
+
+```typescript
+class ChangeBoundsAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind = 'changeBounds';
+
+  /**
+   * The new bounds of an element.
+   */
+  public readonly newBounds: ElementAndBounds[];
+}
+```
+
+### RequestBoundsChangeHintsAction
+
+Sent from the client to the server in order to request hints on whether which elements may be resized and repositioned. The `RequestBoundsChangeHintsAction` is optional, but should usually be among the first messages sent from the client to the server after receiving the model via `RequestModelAction`. The response is a `SetBoundsChangeHintsAction`. The rationale is to avoid a client-server round-trip for user feedback of each synchronous user interaction, such as drag and drop.
+
+```typescript
+class RequestBoundsChangeHintsAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind = 'requestBoundsChangeHints';
+}
+```
+
+### SetBoundsChangeHintsAction
+
+Sent from the server to the client in order to provide hints on which element may be resized or repositioned. These hints concern only the elements' graphical size and position (see also `ChangeBoundsAction`).
+
+```typescript
+class SetBoundsChangeHintsAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind = 'setBoundsChangeHints';
+
+  /**
+   * The hints.
+   */
+  public readonly hints: BoundsChangeHint[];
+}
+
+class BoundsChangeHint {
+  /**
+   * The id of the element.
+   */
+  public readonly elementId: string;
+
+  /**
+   * Specifies whether the element can be resized.
+   */
+  public readonly resizable: boolean;
+
+  /**
+   * Specifies whether the element can be relocated.
+   */
+  public readonly repositionable: boolean;
+}
+```
+
+## Additional Actions
+
+### ExecuteServerCommandAction
+
+Sent from the client to the server to invoke the execution of a server command. Server commands may execute arbitrary actions, such as code generation, etc. These actions, however, shouldn't manipulate the model. For such actions, an `ExecuteOperationAction` should be used.
+
+```typescript
+class ExecuteServerCommandAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind = 'executeServerCommand';
+  /**
+   * The id of the server command.
+   */
+  public readonly commandID: string;
+  /**
+   * The id of the context element.
+   */
+  public readonly elementId?: string;
+}
+```
+
+### RequestLayersAction
+
+Sent from the client to the server in order to request diagram layers. With `RequestModelAction` and `RequestToolsAction`, they are the firsts messages that are sent to the server. The response is a `SetLayersAction`.
+
+```typescript
+class RequestLayersAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind = 'requestLayers';
 }
 ```
 
@@ -540,80 +820,9 @@ interface Layer {
 }
 ```
 
-### SetModelAction
-
-Sent from the model source to the client in order to set the model. If a model is already present, it is replaced.
-
-```typescript
-class SetModelAction implements Action {
-  /**
-   * The kind of the action.
-   */
-  public readonly kind = 'setModel';
-
-  /**
-   * The new diagram elements.
-   */
-  public readonly newRoot: SModelRootSchema;
-}
-```
-
-### SetPopupModelAction
-
-Sent from the model source to the client to display a popup in response to a `RequestPopupModelAction`. This action can also be used to remove any existing popup by choosing EMPTY_ROOT as root element.
-
-```typescript
-class SetPopupModelAction implements Action {
-  /**
-   * The kind of the action.
-   */
-  public readonly kind = 'setPopupModel';
-
-  /**
-   * The model elements composing the popup to display.
-   */
-  public readonly newRoot: SModelRootSchema;
-}
-```
-
-### SetToolsAction
-
-Sent from the server to the client in order to set the available tools. A tool is available only if the layer that contains the tool is activated. If tools are already presents, they are replaced.
-
-```typescript
-class SetToolsAction implements Action {
-  /**
-   * The kind of the action.
-   */
-  public readonly kind = 'setTools';
-
-  /**
-   * The Tools of the diagram.
-   */
-  public readonly tools: Tool[];
-}
-
-interface Tool {
-  /**
-   * The tool identifier.
-   */
-  readonly id: string;
-
-  /**
-   * The tool name.
-   */
-  readonly name: string;
-
-  /**
-   * The tool type.
-   */
-  readonly toolType: string;
-}
-```
-
 ### ToggleLayerAction
 
-Sent from the client to the server in order to toggle a layer. The model, the layers and the tools may be updated after the changes.
+Sent from the client to the server in order to toggle a layer. The model, the layers, and the tools may be updated after the changes.
 
 ```typescript
 class ToggleLayerAction implements Action {
@@ -631,34 +840,6 @@ class ToggleLayerAction implements Action {
    * The new state of the layer.
    */
   public readonly newState: boolean;
-}
-```
-
-### UpdateModelAction
-
-Sent from the model source to the client in order to update the model. If no model is present yet, this behaves the same as a SetModelAction. The transition from the old model to the new one can be animated.
-
-```typescript
-class UpdateModelAction implements Action {
-  /**
-   * The kind of the action.
-   */
-  public readonly kind = 'updateModel';
-
-  /**
-   * The new root element of the diagram.
-   */
-  public readonly newRoot?: SModelRootSchema;
-
-  /**
-   * The matches used while comparing the diagram elements.
-   */
-  public readonly matches?: Match[];
-
-  /**
-   * Indicates if the update should be performed with animation support or not.
-   */
-  public readonly animate: boolean = true;
 }
 ```
 
