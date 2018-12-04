@@ -140,7 +140,7 @@ class RequestBoundsAction implements Action {
 Sent from the client to the server to transmit the result of bounds computation as a response to a `RequestBoundsAction`. If the server is responsible for parts of the layout (see `needsServerLayout` viewer option), it can do so after applying the computed bounds received with this action. Otherwise there is no need to send the computed bounds to the server, so they can be processed locally by the client.
 
 ```typescript
-export class ComputedBoundsAction implements Action {
+class ComputedBoundsAction implements Action {
   /**
    * The kind of the action.
    */
@@ -303,7 +303,7 @@ class CollapseExpandAction implements Action {
 Collapses or expands all elements of the model.
 
 ```typescript
-export class CollapseExpandAllAction {
+ class CollapseExpandAllAction {
   /**
    * The kind of the action.
    */
@@ -520,7 +520,7 @@ class RequestOperationsAction implements Action {
 The server updates the client on the available operations using a `SetOperationsAction`.
 
 ```typescript
-export class SetOperationsAction implements Action {
+class SetOperationsAction implements Action {
   /**
    * The kind of the action.
    */
@@ -540,24 +540,25 @@ export interface Operation {
 }
 
 export namespace OperationKind {
-  export const CREATE_NODE = "create-node";
-  export const CREATE_CONNECTION = "create-connection";
+  export const CREATE_NODE = "createNode";
+  export const CREATE_CONNECTION = "createConnection";
   export const DELETE_ELEMENT = "delete";
-  export const MOVE = "move";
+  export const CHANGE_BOUNDS = "changeBoundsOperation";
+  export const CHANGE_CONTAINER = "changeContainer";
   export const GENERIC = "generic";
 }
 ```
 
-### ExecuteOperationAction
+### GenericOperationAction
 
-The client sends an `ExecuteOperationAction` to the server, to request the execution of a `generic` operation.
+The client sends an `GenericOperationAction` to the server, to request the execution of a `generic` operation.
 
 ```typescript
-export class ExecuteOperationAction implements Action {
+class GenericOperationAction implements Action {
   /**
    * The kind of the action.
    */
-  readonly kind = 'executeOperation_generic';
+  readonly kind = 'generic';
   /*
    * The id of the generic operation.
    */
@@ -574,16 +575,16 @@ export class ExecuteOperationAction implements Action {
 ```
 
 
-### ExecuteCreateNodeOperationAction
+### CreateNodeOperationAction
 
-The client sends a `ExecuteCreateNodeOperationAction` to the server, to request the execution of an `create-node` operation.
+The client sends a `CreateNodeOperationAction` to the server, to request the execution of a `createNode` operation.
 
 ```typescript
-export class ExecuteCreateNodeOperationAction implements Action {
+class CreateNodeOperationAction implements Action {
   /**
    * The kind of the action.
    */
-  readonly kind = 'executeOperation_create-node';
+  readonly kind = 'createNode';
   /**
    * The type of the element to be created.
    */
@@ -599,16 +600,16 @@ export class ExecuteCreateNodeOperationAction implements Action {
 }
 ```
 
-### ExecuteCreateConnectionOperationAction
+### CreateConnectionOperationAction
 
-The client sends a `ExecuteCreateConnectionOperationAction` to the server, to request the execution of an `create-connection` operation.
+The client sends a `CreateConnectionOperationAction` to the server, to request the execution of a `createConnection` operation.
 
 ```typescript
-export class ExecuteCreateConnectionOperationAction implements Action {
+class CreateConnectionOperationAction implements Action {
   /**
    * The kind of the action.
    */
-  readonly kind = 'executeOperation_create-connection';
+  readonly kind = 'createConnection';
   /**
    * The type of the element to be created.
    */
@@ -624,39 +625,57 @@ export class ExecuteCreateConnectionOperationAction implements Action {
 }
 ```
 
-### ExecuteDeleteElementOperationAction
+### DeleteElementOperationAction
 
-The client sends a `ExecuteDeleteElementOperationAction` to the server, to request the execution of an `delete` operation.
+The client sends a `DeleteElementOperationAction` to the server, to request the execution of a `delete` operation.
 
 ```typescript
-export class ExecuteDeleteElementOperationAction  implements Action {
+class DeleteElementOperationAction  implements Action {
   /**
    * The kind of the action.
    */
-  readonly kind = 'executeOperation_delete';
+  readonly kind = 'delete';
   /**
    * The element to be deleted.
    */
-  public readonly elementId: string;
+  public readonly elementIds: string[];
 }
 ```
 
-### ExecuteMoveElementOperationAction
+### ChangeBoundsOperationAction
 
-The client sends a `ExecuteMoveElementOperationAction` to the server, to request the execution of an `move` operation.
+The client sends a `ChangeBoundsOperationAction` to the server, to request the execution of a `changeBoundsOperation` operation.
 
 ```typescript
-export class ExecuteMoveElementOperationAction  implements Action {
+class ChangeBoundsOperationAction  implements Action {
   /**
    * The kind of the action.
    */
-  readonly kind = 'executeOperation_move';
+  public readonly kind = 'changeBoundsOperation';
+
   /**
-   * The element to be moved.
+   * The new bounds of an element.
+   */
+  public readonly newBounds: ElementAndBounds[];
+}
+```
+
+### ChangeContainerOperation
+
+The client sends a `ChangeContainerOperation` to the server, to request the execution of a `changeContainer` operation.
+
+```typescript
+class ChangeContainerOperation  implements Action {
+  /**
+   * The kind of the action.
+   */
+  readonly kind = 'changeContainer';
+  /**
+   * The element to be changed.
    */
   public readonly elementId: string;
   /**
-   * The element container of the move operation.
+   * The element container of the changeContainer operation.
    */
   public readonly targetContainerId: string;
   /**
@@ -666,29 +685,29 @@ export class ExecuteMoveElementOperationAction  implements Action {
 }
 ```
 
-### RequestMoveHintsAction
+### RequestContainerChangeHintsAction
 
-Sent from the client to the server in order to request hints on whether which elements may be moved into which containers. The `RequestMoveHintsAction` is optional, but should usually be among the first messages sent from the client to the server after receiving the model via `RequestModelAction`. The response is a `SetMoveHintsAction`.
+Sent from the client to the server in order to request hints on whether which elements may be moved into which containers. The `RequestContainerChangeHintsAction` is optional, but should usually be among the first messages sent from the client to the server after receiving the model via `RequestModelAction`. The response is a `SetContainerChangeHintsAction`.
 
 ```typescript
-class RequestMoveHintsAction implements Action {
+class RequestContainerChangeHintsAction implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'requestMoveHints';
+  public readonly kind = 'requestContainerChangeHints';
 }
 ```
 
-### SetMoveHintsAction
+### SetContainerChangeHintsAction
 
-Sent from the server to the client in order to provide hints on which element may be moved into which target element. These hints specify whether an element can change its container (see also `MoveAction`). The rationale is to avoid a client-server round-trip for user feedback of each synchronous user interaction, such as drag and drop.
+Sent from the server to the client in order to provide hints on which element may be moved into which target element. These hints specify whether an element can change its container (see also `ChangeContainerAction`). The rationale is to avoid a client-server round-trip for user feedback of each synchronous user interaction, such as drag and drop.
 
 ```typescript
-class SetMoveHintsAction implements Action {
+class SetContainerChangeHintsAction implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'setMoveHints';
+  public readonly kind = 'setContainerChangeHints';
 
   /**
    * The move hints.
@@ -772,6 +791,17 @@ class BoundsChangeHint {
    * Specifies whether the element can be relocated.
    */
   public readonly repositionable: boolean;
+}
+```
+### SaveModelAction
+
+Sent from the client to the server in order to persist the current model state back to the model source.
+```typescript
+class SaveModelAction implements Action{
+  /**
+   * The kind of the action.
+   */
+  public readonly kind = 'saveModel';
 }
 ```
 
