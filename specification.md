@@ -104,16 +104,6 @@ class UpdateModelAction implements Action {
    * The new root element of the graphical model.
    */
   public readonly newRoot?: SModelRootSchema;
-
-  /**
-   * The matches used while comparing the graphical model elements.
-   */
-  public readonly matches?: Match[];
-
-  /**
-   * Indicates if the update should be performed with animation support or not.
-   */
-  public readonly animate: boolean = true;
 }
 ```
 
