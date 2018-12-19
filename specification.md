@@ -731,7 +731,7 @@ class ElementTypeHint {
     /**
      * The types of elements that can be contained by this element (if any)
      */
-    public readonly containableElementIds?: string[];
+    public readonly containableElementTypeIds?: string[];
 }
 ```
 
