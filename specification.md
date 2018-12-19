@@ -53,6 +53,7 @@ interface SModelElementSchema {
 }
 ```
 
+
 ### RequestModelAction
 
 Sent from the client to the server in order to request a graphical model. Usually this is the first message that is sent from the client to the server, so it is also used to initiate the communication. The response is a `SetModelAction` or an `UpdateModelAction`.
@@ -675,52 +676,68 @@ class ChangeContainerOperation  implements Action {
 }
 ```
 
-### RequestContainerChangeHintsAction
+### RequestElementTypeHintsAction
 
-Sent from the client to the server in order to request hints on whether which elements may be moved into which containers. The `RequestContainerChangeHintsAction` is optional, but should usually be among the first messages sent from the client to the server after receiving the model via `RequestModelAction`. The response is a `SetContainerChangeHintsAction`.
+Sent from the client to the server in order to request hints on whether certain modifications are allowed for a specific element type. The `RequestElementTypeHintsAction` is optional, but should usually be among the first messages sent from the client to the server after receiving the model via `RequestModelAction`. The response is a `SetElementTypeHintsAction`.
 
 ```typescript
-class RequestContainerChangeHintsAction implements Action {
+class RequestElementTypeHintsAction implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'requestContainerChangeHints';
+  public readonly kind = 'requestElementTypeHints';
 }
 ```
 
-### SetContainerChangeHintsAction
+### SetElementTypeHintsAction
 
-Sent from the server to the client in order to provide hints on which element may be moved into which target element. These hints specify whether an element can change its container (see also `ChangeContainerAction`). The rationale is to avoid a client-server round-trip for user feedback of each synchronous user interaction, such as drag and drop.
+Sent from the server to the client in order to provide hints certain modifications are allowed for a specific element type. These hints specify whether an element can be resized,reloacted and/or deleted. Optionaly, the specifiy a list of element types that can be contained by this element (see also `ElementTypeHint`). The rationale is to avoid a client-server round-trip for user feedback of each synchronous user interaction.
 
 ```typescript
-class SetContainerChangeHintsAction implements Action {
+class SetElementTypeHintsAction implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'setContainerChangeHints';
+  public readonly kind = 'setElementTypeHints';
 
   /**
-   * The move hints.
+   * The element type hints.
    */
-  public readonly hints: DragAndDropHint[];
+  public readonly hints: ElementTypeHint[];
 }
 
-class DragAndDropHint {
-  /**
-   * The class of the element being a drag source.
-   */
-  public readonly dragElementClass: string;
+class ElementTypeHint {
 
-  /**
-   * The classes of elements being a drop target for elements with the class dragElementClass.
-   */
-  public readonly dropElementClasses: string[];
+ /**
+     * The id of the element.
+     */
+    public readonly elementTypeId: string;
+
+    /**
+     * Specifies whether the element can be resized.
+     */
+    public readonly resizable: boolean;
+
+    /**
+     * Specifies whether the element can be relocated.
+     */
+    public readonly repositionable: boolean;
+
+    /**
+     * Specifices wheter the element can be deleted
+     */
+    public readonly deletable: boolean;
+
+    /**
+     * The types of elements that can be contained by this element (if any)
+     */
+    public readonly containableElementIds?: string[];
 }
 ```
 
 ### ChangeBoundsAction
 
-Triggered when the user changes the position or size of an element. This action concerns only the element's graphical size and position. Whether an element can be resized or repositioned may be specified by the server with a `SetChangeBoundsHintsAction` to allow for immediate user feedback before resizing or repositioning.
+Triggered when the user changes the position or size of an element. This action concerns only the element's graphical size and position. Whether an element can be resized or repositioned may be specified by the server with a `SetElementTypeHintsAction` to allow for immediate user feedback before resizing or repositioning.
 
 ```typescript
 class ChangeBoundsAction implements Action {
@@ -736,53 +753,6 @@ class ChangeBoundsAction implements Action {
 }
 ```
 
-### RequestBoundsChangeHintsAction
-
-Sent from the client to the server in order to request hints on whether which elements may be resized and repositioned. The `RequestBoundsChangeHintsAction` is optional, but should usually be among the first messages sent from the client to the server after receiving the model via `RequestModelAction`. The response is a `SetBoundsChangeHintsAction`. The rationale is to avoid a client-server round-trip for user feedback of each synchronous user interaction, such as drag and drop.
-
-```typescript
-class RequestBoundsChangeHintsAction implements Action {
-  /**
-   * The kind of the action.
-   */
-  public readonly kind = 'requestBoundsChangeHints';
-}
-```
-
-### SetBoundsChangeHintsAction
-
-Sent from the server to the client in order to provide hints on which element may be resized or repositioned. These hints concern only the elements' graphical size and position (see also `ChangeBoundsAction`).
-
-```typescript
-class SetBoundsChangeHintsAction implements Action {
-  /**
-   * The kind of the action.
-   */
-  public readonly kind = 'setBoundsChangeHints';
-
-  /**
-   * The hints.
-   */
-  public readonly hints: BoundsChangeHint[];
-}
-
-class BoundsChangeHint {
-  /**
-   * The id of the element.
-   */
-  public readonly elementId: string;
-
-  /**
-   * Specifies whether the element can be resized.
-   */
-  public readonly resizable: boolean;
-
-  /**
-   * Specifies whether the element can be relocated.
-   */
-  public readonly repositionable: boolean;
-}
-```
 ### SaveModelAction
 
 Sent from the client to the server in order to persist the current model state back to the model source.
