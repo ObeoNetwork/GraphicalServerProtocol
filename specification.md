@@ -676,49 +676,50 @@ class ChangeContainerOperation  implements Action {
 }
 ```
 
-### RequestElementTypeHintsAction
+### RequestTypeHintsAction
 
-Sent from the client to the server in order to request hints on whether certain modifications are allowed for a specific element type. The `RequestElementTypeHintsAction` is optional, but should usually be among the first messages sent from the client to the server after receiving the model via `RequestModelAction`. The response is a `SetElementTypeHintsAction`.
+Sent from the client to the server in order to request hints on whether certain modifications are allowed for a specific element type. The `RequestTypeHintsAction` is optional, but should usually be among the first messages sent from the client to the server after receiving the model via `RequestModelAction`. The response is a `SetTypeHintsAction`.
 
 ```typescript
-class RequestElementTypeHintsAction implements Action {
+class RequestTypeHintsAction implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'requestElementTypeHints';
+  public readonly kind = 'requestTypeHints';
 }
 ```
 
-### SetElementTypeHintsAction
+### SetTypeHintsAction
 
-Sent from the server to the client in order to provide hints certain modifications are allowed for a specific element type. These hints specify whether an element can be resized,reloacted and/or deleted. Optionaly, the specifiy a list of element types that can be contained by this element (see also `ElementTypeHint`). The rationale is to avoid a client-server round-trip for user feedback of each synchronous user interaction.
+Sent from the server to the client in order to provide hints certain modifications are allowed for a specific element type. These hints specify whether an element can be resized, reloacted and/or deleted. Optionaly, they specifiy a list of element types that can be contained/connected by this element (see also `TypeHint`). The rationale is to avoid a client-server round-trip for user feedback of each synchronous user interaction.
 
 ```typescript
-class SetElementTypeHintsAction implements Action {
+class SetTypeHintsAction implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'setElementTypeHints';
+  public readonly kind = 'setTypeHints';
 
   /**
-   * The element type hints.
+   * The hints for node types
    */
-  public readonly hints: ElementTypeHint[];
+  public readonly nodeHints: NodeTypeHint[];
+  
+    /**
+   * The hints for node types
+   */
+  public readonly edgeHints: EdgeTypeHint[];
+  
 }
 
-class ElementTypeHint {
 
- /**
-     * The id of the element.
-     */
+interface TypeHint{
+    /** 
+    The id of the element.
+    */
     public readonly elementTypeId: string;
-
-    /**
-     * Specifies whether the element can be resized.
-     */
-    public readonly resizable: boolean;
-
-    /**
+    
+     /**
      * Specifies whether the element can be relocated.
      */
     public readonly repositionable: boolean;
@@ -728,16 +729,43 @@ class ElementTypeHint {
      */
     public readonly deletable: boolean;
 
+}
+
+interface NodeTypeHint extends TypeHint {
+    /**
+     * Specifies whether the element can be resized.
+     */
+    public readonly resizable: boolean;
+
     /**
      * The types of elements that can be contained by this element (if any)
      */
     public readonly containableElementTypeIds?: string[];
 }
+
+interface EdgeTypeHint extends TypeHint {
+
+    /**
+     * Specifies whether the routing of this element can be changed.
+     */
+    public readonly routable: boolean;
+    
+    /**
+     * Allowed source element types for this edge type
+     */
+    public readonly sourceElementTypeIds: string[];
+    
+     /**
+     * Allowed targe element types for this edge type
+     */
+    public readonly targetElementTypeIds: string[];
+
+}
 ```
 
 ### ChangeBoundsAction
 
-Triggered when the user changes the position or size of an element. This action concerns only the element's graphical size and position. Whether an element can be resized or repositioned may be specified by the server with a `SetElementTypeHintsAction` to allow for immediate user feedback before resizing or repositioning.
+Triggered when the user changes the position or size of an element. This action concerns only the element's graphical size and position. Whether an element can be resized or repositioned may be specified by the server with a `SetTypeHintsAction` to allow for immediate user feedback before resizing or repositioning.
 
 ```typescript
 class ChangeBoundsAction implements Action {
