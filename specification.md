@@ -691,7 +691,7 @@ class RequestTypeHintsAction implements Action {
 
 ### SetTypeHintsAction
 
-Sent from the server to the client in order to provide hints certain modifications are allowed for a specific element type. These hints specify whether an element can be resized,reloacted and/or deleted. Optionaly, the specifiy a list of element types that can be contained/connected by this element (see also `TypeHint`). The rationale is to avoid a client-server round-trip for user feedback of each synchronous user interaction.
+Sent from the server to the client in order to provide hints certain modifications are allowed for a specific element type. These hints specify whether an element can be resized, reloacted and/or deleted. Optionaly, they specifiy a list of element types that can be contained/connected by this element (see also `TypeHint`). The rationale is to avoid a client-server round-trip for user feedback of each synchronous user interaction.
 
 ```typescript
 class SetTypeHintsAction implements Action {
@@ -741,10 +741,6 @@ interface NodeTypeHint extends TypeHint {
      * The types of elements that can be contained by this element (if any)
      */
     public readonly containableElementTypeIds?: string[];
-     /**
-     * The types of elements that can be conntected to this element (if any)
-     */
-    public readonly connectableElementTypeIds?: string[]
 }
 
 interface EdgeTypeHint extends TypeHint {
@@ -753,6 +749,16 @@ interface EdgeTypeHint extends TypeHint {
      * Specifies whether the routing of this element can be changed.
      */
     public readonly routable: boolean;
+    
+    /**
+     * Allowed source element types for this edge type
+     */
+    public readonly sourceElementTypeIds: string[];
+    
+     /**
+     * Allowed targe element types for this edge type
+     */
+    public readonly targetElementTypeIds: string[];
 
 }
 ```
