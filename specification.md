@@ -888,5 +888,84 @@ class ToggleLayerAction implements Action {
   public readonly newState: boolean;
 }
 ```
+### RequestCommandPaletteActions
 
+This action is sent from the client to the server to request additional command palette actions.
 
+```typescript
+class IdentifiableRequestAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind: string = 'requestCommandPaletteActions';
+  
+ /**
+   * The identifier of the elements that are selected.
+   */
+  public readonly selectedElementsIDs: string[];
+}
+```
+
+### SetCommandPaletteActions
+
+This action is sent from the server to the client to specify additional command palette actions for a given context. The context is given by the `RequestCommandPaletteActions` in the form of the selected elemens.
+
+```typescript
+class SetCommandPaletteActions implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind: string = 'setCommandPaletteActions';
+
+  /**
+   * The command palette actions provided by the server.
+   */
+  public readonly actions: LabeledAction[];
+}
+```
+
+### IdentifiableRequestAction
+
+This action is sent from the client to the server where the wrapped action is executed. Using the id from the `IdentifiableResponseAction` returned by the server, the client can clearly match the response to the specified request.
+
+```typescript
+class IdentifiableRequestAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind: string = 'identifiableRequestAction';
+
+  /**
+   * The identifier of the request.
+   */
+  public readonly id: string;
+
+  /**
+   * The wrapped action.
+   */
+  public readonly action: Action;
+}
+```
+
+### IdentifiableResponseAction
+
+This action is sent from the server to the client after receiving an `IdentifiableRequestAction`. The server handles the wrapped action as if it was sent directly but wraps the response action to additionally specify the correct request/response id.
+
+```typescript
+class IdentifiableRequestAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind: string = 'identifiableResponseAction';
+
+  /**
+   * The identifier of the request/response.
+   */
+  public readonly id: string;
+
+  /**
+   * The wrapped action.
+   */
+  public readonly action: Action;
+}
+```
