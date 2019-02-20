@@ -893,7 +893,7 @@ class ToggleLayerAction implements Action {
 This action is sent from the client to the server to request additional command palette actions.
 
 ```typescript
-class RequestCommandPaletteAction implements Action {
+class RequestCommandPaletteActions implements Action {
   /**
    * The kind of the action.
    */
