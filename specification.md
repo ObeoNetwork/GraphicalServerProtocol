@@ -969,3 +969,26 @@ class IdentifiableRequestAction implements Action {
   public readonly action: Action;
 }
 ```
+
+### ReconnectConnectionAction
+
+This action is sent from the client to the server to reconnect an existing connection by setting a new source or target element. As opposed to deleting and re-creating an edge, this action has the advantage that the object identity on the server and the properties of the connection are preserved.
+
+```typescript
+class ReconnectConnectionAction implements Action {
+  /**
+   * The identifier of the connection.
+   */
+  public readonly connectionElementId: string = 'identifiableResponseAction';
+
+  /**
+   * The identifier of the (new) source element.
+   */
+  public readonly sourceElementId: string;
+
+  /**
+   * The identifier of the (new) target element.
+   */
+  public readonly targetElementId: string;
+}
+```
