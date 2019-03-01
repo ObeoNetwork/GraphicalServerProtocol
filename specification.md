@@ -977,9 +977,14 @@ This action is sent from the client to the server to reconnect an existing conne
 ```typescript
 class ReconnectConnectionAction implements Action {
   /**
+   * The kind of the action.
+   */
+  public readonly kind: string = 'reconnectConnection';
+  
+  /**
    * The identifier of the connection.
    */
-  public readonly connectionElementId: string = 'identifiableResponseAction';
+  public readonly connectionElementId: string;
 
   /**
    * The identifier of the (new) source element.
