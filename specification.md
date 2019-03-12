@@ -997,3 +997,26 @@ class ReconnectConnectionAction implements Action {
   public readonly targetElementId: string;
 }
 ```
+
+### RerouteConnectionAction
+
+This action is sent from the client to the server to request the change an existing connection route by specifing the new route as an array of routing points.
+
+```typescript
+class ReconnectConnectionAction implements Action {
+  /**
+   * The kind of the action.
+   */
+  public readonly kind: string = 'rerouteConnection';
+  
+  /**
+   * The identifier of the connection.
+   */
+  public readonly connectionElementId: string;
+
+  /**
+   * The (changed) routing points of the connection.
+   */
+  public readonly routingPoints: Point[];
+}
+```
