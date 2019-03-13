@@ -642,7 +642,7 @@ class ChangeBoundsOperationAction  implements Action {
   /**
    * The kind of the action.
    */
-  public readonly kind = 'changeBoundsOperation';
+  public readonly kind = 'changeBounds';
 
   /**
    * The new bounds of an element.
@@ -651,12 +651,12 @@ class ChangeBoundsOperationAction  implements Action {
 }
 ```
 
-### ChangeContainerOperation
+### ChangeContainerOperationAction
 
-The client sends a `ChangeContainerOperation` to the server, to request the execution of a `changeContainer` operation.
+The client sends a `ChangeContainerOperationAction` to the server, to request the execution of a `changeContainer` operation.
 
 ```typescript
-class ChangeContainerOperation  implements Action {
+class ChangeContainerOperationAction  implements Action {
   /**
    * The kind of the action.
    */
@@ -672,7 +672,7 @@ class ChangeContainerOperation  implements Action {
   /**
    * The graphical location.
    */
-  public readonly location?: string;
+  public readonly location?: Point;
 }
 ```
 
