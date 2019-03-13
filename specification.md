@@ -527,7 +527,13 @@ export interface Operation {
     readonly elementTypeId?: string;
     readonly label: string;
     readonly operationKind: string;
-    readonly active?: boolean;
+    readonly group:Group;
+}
+
+export interface Group {
+    readonly id: string;
+    readonly label: string;
+    readonly parentGroup?: Group;
 }
 
 export namespace OperationKind {
